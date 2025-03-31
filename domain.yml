@@ -1,0 +1,89 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - provide_name
+  - provide_phone
+  - provide_address
+  - start_registration
+  - out_of_scope
+
+entities:
+  - name
+  - phone
+  - address
+
+slots:
+  name:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: name
+  phone:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: phone
+  address:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: address
+  requested_slot:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: custom
+
+forms:
+  user_details_form:
+    required_slots:
+      - name
+      - phone
+      - address
+
+responses:
+  utter_greet:
+    - text: "سڵاو! من بۆتی یارمەتیدەرم. دەتوانم زانیاریەکانت بۆ تۆمار بکەم. دەتەوێت دەست پێ بکەین؟" # Hello! I'm a helper bot. I can record your information. Would you like to begin?
+
+  utter_ask_name:
+    - text: "تکایە ناوی تەواوت بنووسە" # Please write your full name
+
+  utter_ask_phone:
+    - text: "ژمارەی تەلەفۆنت چییە؟" # What is your phone number?
+
+  utter_ask_address:
+    - text: "تکایە ناونیشانی تەواوت بنووسە" # Please write your full address
+
+  utter_registration_complete:
+    - text: "سوپاس {name}! زانیاریەکانت تۆمار کران. ئەمانەن زانیاریەکانت:\nناو: {name}\nژمارەی تەلەفۆن: {phone}\nناونیشان: {address}" # Thank you {name}! Your information has been recorded. Here are your details:
+
+  utter_goodbye:
+    - text: "خوات لەگەڵ. ئەگەر پێویستت بە یارمەتی هەبوو، پەیوەندیمان پێوە بکە" # Goodbye. If you need any help, contact us
+
+  utter_default:
+    - text: "ببورە، تێنەگەیشتم. دەکرێت بە شێوەیەکی تر بیڵێیتەوە؟" # Sorry, I didn't understand. Can you say it in another way?
+
+  utter_out_of_scope:
+    - text: "ببورە، ناتوانم یارمەتیت بدەم لەم بارەیەوە. تەنها دەتوانم زانیاریەکانت تۆمار بکەم." # Sorry, I cannot help with this. I can only record your information.
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+
+actions:
+  - utter_greet
+  - utter_ask_name
+  - utter_ask_phone
+  - utter_ask_address
+  - utter_registration_complete
+  - utter_goodbye
+  - utter_default
+  - utter_out_of_scope
+  - action_store_user_data

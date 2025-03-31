@@ -1,0 +1,74 @@
+version: "3.1"
+
+stories:
+  - story: happy path
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: affirm
+      - action: utter_ask_name
+      - intent: provide_name
+        entities:
+          - name: "ئاکۆ محەمەد"
+      - slot_was_set:
+          - name: "ئاکۆ محەمەد"
+      - action: utter_ask_phone
+      - intent: provide_phone
+        entities:
+          - phone: "٠٧٥٠١٢٣٤٥٦٧"
+      - slot_was_set:
+          - phone: "٠٧٥٠١٢٣٤٥٦٧"
+      - action: utter_ask_address
+      - intent: provide_address
+        entities:
+          - address: "گەڕەکی ڕاپەڕین، کۆڵانی ١٢، خانووی ژمارە ٥"
+      - slot_was_set:
+          - address: "گەڕەکی ڕاپەڕین، کۆڵانی ١٢، خانووی ژمارە ٥"
+      - action: action_store_user_data
+      - action: utter_registration_complete
+      - intent: goodbye
+      - action: utter_goodbye
+
+  - story: start with registration and happy path
+    steps:
+      - intent: start_registration
+      - action: user_details_form
+      - active_loop: user_details_form
+      - slot_was_set:
+          - requested_slot: name
+      - intent: provide_name
+        entities:
+          - name: "سارا عەلی"
+      - slot_was_set:
+          - name: "سارا عەلی"
+      - slot_was_set:
+          - requested_slot: phone
+      - intent: provide_phone
+        entities:
+          - phone: "٠٧٧١٢٣٤٥٦٧"
+      - slot_was_set:
+          - phone: "٠٧٧١٢٣٤٥٦٧"
+      - slot_was_set:
+          - requested_slot: address
+      - intent: provide_address
+        entities:
+          - address: "شاری هەولێر، گەڕەکی نەورۆز، نزیک نەخۆشخانەی ڕزگاری"
+      - slot_was_set:
+          - address: "شاری هەولێر، گەڕەکی نەورۆز، نزیک نەخۆشخانەی ڕزگاری"
+      - slot_was_set:
+          - requested_slot: null
+      - active_loop: null
+      - action: action_store_user_data
+      - action: utter_registration_complete
+
+  - story: user refuses
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: deny
+      - action: utter_goodbye
+
+  - story: out of scope
+    steps:
+      - intent: out_of_scope
+      - action: utter_out_of_scope
