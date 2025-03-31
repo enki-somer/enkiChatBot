@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "python -m rasa train"
+buildCommand = "pip install --upgrade pip setuptools && python -m rasa train"
 
 [deploy]
 numReplicas = 1
