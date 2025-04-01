@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.8-slim AS base
 
 WORKDIR /app
 
@@ -21,5 +21,17 @@ COPY . .
 # Train the model
 RUN python -m rasa train
 
-# Command to run when the container starts
-CMD rasa run --enable-api --cors "*" --credentials credentials_railway.yml --port $PORT 
+# Main Rasa service
+FROM base AS rasa
+EXPOSE 5005
+CMD rasa run --enable-api --cors "*" --credentials credentials_railway.yml --port $PORT
+
+# Actions service
+FROM base AS actions
+EXPOSE 5055
+CMD rasa run actions --port 5055
+
+# Test widget service
+FROM base AS widget
+EXPOSE 8080
+CMD python serve_test_widget.py 
