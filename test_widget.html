@@ -31,7 +31,7 @@
             font-weight: bold;
         }
         #messages {
-            height: 480px;
+            height: 450px;
             overflow-y: auto;
             padding: 10px;
         }
@@ -53,6 +53,16 @@
             color: black;
             margin-right: auto;
             border-bottom-left-radius: 4px;
+        }
+        .system-message {
+            background-color: #ffe6cc;
+            color: #664400;
+            text-align: center;
+            margin: 5px auto;
+            font-size: 0.8em;
+            padding: 5px 10px;
+            border-radius: 10px;
+            max-width: 90%;
         }
         .chat-input {
             display: flex;
@@ -77,6 +87,22 @@
             cursor: pointer;
             font-size: 16px;
         }
+        .api-status {
+            font-size: 0.7em;
+            text-align: center;
+            padding: 2px;
+            color: #666;
+            background-color: #f8f8f8;
+            border-top: 1px solid #eee;
+        }
+        .api-status.connected {
+            background-color: #e6ffe6;
+            color: #006600;
+        }
+        .api-status.disconnected {
+            background-color: #fff0f0;
+            color: #660000;
+        }
     </style>
 </head>
 <body>
@@ -87,6 +113,7 @@
             <input type="text" id="user-input" placeholder="Type a message...">
             <button id="send-button">➤</button>
         </div>
+        <div id="api-status" class="api-status">Checking API connection...</div>
     </div>
 
     <script>
@@ -94,6 +121,18 @@
             const messagesContainer = document.getElementById('messages');
             const userInput = document.getElementById('user-input');
             const sendButton = document.getElementById('send-button');
+            const apiStatus = document.getElementById('api-status');
+            
+            // Configuration
+            const API_BASE_URL = window.location.origin;
+            const ENDPOINTS = [
+                '/webhooks/custom_rest/webhook',
+                '/webhooks/rest/webhook',  // Try standard REST webhook as fallback
+                '/webhooks/webhook'        // Try minimal path as another option
+            ];
+            let currentEndpointIndex = 0;
+            let apiConnected = false;
+            let apiEndpoint = ENDPOINTS[currentEndpointIndex];
             
             // Bot state tracking
             const botState = {
@@ -106,33 +145,21 @@
                 lastQuestion: ''
             };
             
-            // Greeting patterns (for approximate matching)
+            // Pattern dictionaries
             const greetingPatterns = ['سڵاو', 'سلاو', 'سلام', 'hello', 'slav', 'چۆنی', 'hi', 'hey'];
-            
-            // Affirmative patterns
             const affirmativePatterns = ['بەڵێ', 'بەلی', 'باشە', 'ok', 'yes', 'بێگومان', 'ba', 'بة', 'بلێ', 'باش'];
-            
-            // Negative patterns
             const negativePatterns = ['نا', 'نەخێر', 'نةخێر', 'no', 'na', 'نه‌'];
-            
-            // Name patterns
             const namePatterns = ['ناوم', 'name', 'ناو', 'من'];
-            
-            // Phone patterns
             const phonePatterns = ['ژمارە', 'تەلەفۆن', 'phone', 'number', '07', '٠٧', 'mobile'];
-            
-            // Address patterns
             const addressPatterns = ['ناونیشان', 'address', 'location', 'شوێن', 'گەڕەکی', 'گه‌ڕه‌ك', 'شار', 'city'];
             
-            // Function to detect phone numbers in text
+            // Helper functions
             function extractPhoneNumber(text) {
-                // Match Kurdish/Arabic numerals or Latin numerals that resemble phone numbers
                 const phoneRegex = /[٠-٩0-9]{7,}/g;
                 const match = text.match(phoneRegex);
                 return match ? match[0] : null;
             }
             
-            // Function to detect if text matches any pattern in the array
             function matchesAnyPattern(text, patterns) {
                 const lowercaseText = text.toLowerCase();
                 return patterns.some(pattern => lowercaseText.includes(pattern));
@@ -214,7 +241,49 @@
                 }
             }
             
-            // Initial bot message
+            // Test API connection with all available endpoints
+            async function testApiConnection() {
+                for (let i = 0; i < ENDPOINTS.length; i++) {
+                    const endpoint = ENDPOINTS[i];
+                    try {
+                        // Simple test message
+                        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                sender: 'tester',
+                                message: "test"
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            apiConnected = true;
+                            apiEndpoint = endpoint;
+                            currentEndpointIndex = i;
+                            apiStatus.textContent = `Connected to Rasa API (${endpoint})`;
+                            apiStatus.className = 'api-status connected';
+                            addSystemMessage("Connected to Rasa chatbot backend!");
+                            return true;
+                        }
+                    } catch (e) {
+                        console.log(`Endpoint ${endpoint} failed:`, e);
+                    }
+                }
+                
+                // If we get here, all endpoints failed
+                apiConnected = false;
+                apiStatus.textContent = "Disconnected from Rasa API - Using fallback mode";
+                apiStatus.className = 'api-status disconnected';
+                addSystemMessage("Couldn't connect to Rasa backend - using fallback mode");
+                return false;
+            }
+            
+            // Initial API connection test
+            testApiConnection();
+            
+            // Initialize the chat
             addBotMessage("سڵاو! من بۆتی یارمەتیدەرم. دەتوانم زانیاریەکانت بۆ تۆمار بکەم. دەتەوێت دەست پێ بکەین؟");
             
             // Send message function
@@ -227,48 +296,64 @@
                     // Clear input
                     userInput.value = '';
                     
-                    // Try API first
-                    fetch('https://web-production-f6c40.up.railway.app/webhooks/custom_rest/webhook', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            sender: 'user',
-                            message: text
+                    if (apiConnected) {
+                        // Try API first
+                        fetch(`${API_BASE_URL}${apiEndpoint}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                sender: 'user',
+                                message: text
+                            })
                         })
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('API Success:', data);
-                        if (data && data.length > 0) {
-                            // Process messages from the API
-                            data.forEach(message => {
-                                if (message.text) {
-                                    addBotMessage(message.text);
-                                }
-                            });
-                        } else {
-                            // No messages from API, fall back to local processing
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('API Success:', data);
+                            if (data && data.length > 0) {
+                                // Process messages from the API
+                                data.forEach(message => {
+                                    if (message.text) {
+                                        addBotMessage(message.text);
+                                    }
+                                });
+                            } else {
+                                // No messages from API, fall back to local processing
+                                addSystemMessage("Received empty response from API - using fallback logic");
+                                const botResponse = processUserInput(text);
+                                addBotMessage(botResponse);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error:', error);
+                            addSystemMessage(`API Error: ${error.message} - using fallback logic`);
+                            // Process locally on API failure
                             const botResponse = processUserInput(text);
                             addBotMessage(botResponse);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('API Error:', error);
-                        // Process locally on API failure
+                            
+                            // Try to reconnect if this happens repeatedly
+                            if (!apiConnected) {
+                                // Try the next endpoint
+                                currentEndpointIndex = (currentEndpointIndex + 1) % ENDPOINTS.length;
+                                apiEndpoint = ENDPOINTS[currentEndpointIndex];
+                                testApiConnection();
+                            }
+                        });
+                    } else {
+                        // API not connected, use local processing
                         const botResponse = processUserInput(text);
                         addBotMessage(botResponse);
-                    });
+                    }
                 }
             }
             
-            // Add a user message to the chat
+            // UI Helper functions
             function addUserMessage(text) {
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message user-message';
@@ -277,7 +362,6 @@
                 scrollToBottom();
             }
             
-            // Add a bot message to the chat
             function addBotMessage(text) {
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message bot-message';
@@ -286,7 +370,14 @@
                 scrollToBottom();
             }
             
-            // Scroll to the bottom of the messages container
+            function addSystemMessage(text) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'system-message';
+                messageElement.textContent = text;
+                messagesContainer.appendChild(messageElement);
+                scrollToBottom();
+            }
+            
             function scrollToBottom() {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
