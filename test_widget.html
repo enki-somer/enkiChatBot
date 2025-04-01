@@ -103,6 +103,13 @@
             background-color: #fff0f0;
             color: #660000;
         }
+        .server-selector {
+            margin-top: 5px;
+            padding: 5px;
+            text-align: center;
+            font-size: 0.7em;
+            border-top: 1px solid #eee;
+        }
     </style>
 </head>
 <body>
@@ -114,6 +121,16 @@
             <button id="send-button">➤</button>
         </div>
         <div id="api-status" class="api-status">Checking API connection...</div>
+        <div class="server-selector">
+            <label for="rasa-server">Rasa Server: </label>
+            <select id="rasa-server">
+                <option value="auto">Auto (current domain)</option>
+                <option value="https://chatbottest-production.up.railway.app">chatbottest-production</option>
+                <option value="custom">Custom URL</option>
+            </select>
+            <input type="text" id="custom-server" placeholder="Custom Rasa server URL" style="display:none; width:80%; margin-top:5px;">
+            <button id="connect-button" style="margin-top:5px;">Connect</button>
+        </div>
     </div>
 
     <script>
@@ -122,9 +139,12 @@
             const userInput = document.getElementById('user-input');
             const sendButton = document.getElementById('send-button');
             const apiStatus = document.getElementById('api-status');
+            const rasaServerSelect = document.getElementById('rasa-server');
+            const customServerInput = document.getElementById('custom-server');
+            const connectButton = document.getElementById('connect-button');
             
             // Configuration
-            const API_BASE_URL = window.location.origin;
+            let API_BASE_URL = window.location.origin;
             const ENDPOINTS = [
                 '/webhooks/custom_rest/webhook',
                 '/webhooks/rest/webhook',  // Try standard REST webhook as fallback
@@ -133,6 +153,39 @@
             let currentEndpointIndex = 0;
             let apiConnected = false;
             let apiEndpoint = ENDPOINTS[currentEndpointIndex];
+            
+            // Show/hide custom server input based on selection
+            rasaServerSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customServerInput.style.display = 'inline-block';
+                } else {
+                    customServerInput.style.display = 'none';
+                    if (this.value === 'auto') {
+                        API_BASE_URL = window.location.origin;
+                    } else {
+                        API_BASE_URL = this.value;
+                    }
+                }
+            });
+            
+            // Connect button handler
+            connectButton.addEventListener('click', function() {
+                if (rasaServerSelect.value === 'custom') {
+                    API_BASE_URL = customServerInput.value.trim();
+                    if (!API_BASE_URL) {
+                        addSystemMessage("Please enter a valid Rasa server URL");
+                        return;
+                    }
+                }
+                
+                // Remove trailing slash if present
+                if (API_BASE_URL.endsWith('/')) {
+                    API_BASE_URL = API_BASE_URL.slice(0, -1);
+                }
+                
+                addSystemMessage(`Connecting to Rasa server at: ${API_BASE_URL}`);
+                testApiConnection();
+            });
             
             // Bot state tracking
             const botState = {
@@ -243,6 +296,9 @@
             
             // Test API connection with all available endpoints
             async function testApiConnection() {
+                apiStatus.textContent = "Testing API connection...";
+                apiStatus.className = 'api-status';
+                
                 for (let i = 0; i < ENDPOINTS.length; i++) {
                     const endpoint = ENDPOINTS[i];
                     try {
@@ -262,7 +318,7 @@
                             apiConnected = true;
                             apiEndpoint = endpoint;
                             currentEndpointIndex = i;
-                            apiStatus.textContent = `Connected to Rasa API (${endpoint})`;
+                            apiStatus.textContent = `Connected to Rasa API: ${API_BASE_URL}${endpoint}`;
                             apiStatus.className = 'api-status connected';
                             addSystemMessage("Connected to Rasa chatbot backend!");
                             return true;
