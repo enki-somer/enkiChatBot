@@ -1,4 +1,4 @@
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,27 +16,31 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# Virtual Environment
 .env
 .venv
 venv/
 ENV/
 
-# Rasa specific
-models/
-.rasa/
-results/
-user_data.json
-
-# IDE specific files
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Rasa
+.rasa/
+models/
+*.tar.gz
+
+# Logs
+*.log
+logs/
 
 # OS specific files
 .DS_Store

@@ -31,7 +31,7 @@
             font-weight: bold;
         }
         #messages {
-            height: 450px;
+            height: 500px;
             overflow-y: auto;
             padding: 10px;
         }
@@ -103,13 +103,6 @@
             background-color: #fff0f0;
             color: #660000;
         }
-        .server-selector {
-            margin-top: 5px;
-            padding: 5px;
-            text-align: center;
-            font-size: 0.7em;
-            border-top: 1px solid #eee;
-        }
     </style>
 </head>
 <body>
@@ -120,17 +113,7 @@
             <input type="text" id="user-input" placeholder="Type a message...">
             <button id="send-button">➤</button>
         </div>
-        <div id="api-status" class="api-status">Checking API connection...</div>
-        <div class="server-selector">
-            <label for="rasa-server">Rasa Server: </label>
-            <select id="rasa-server">
-                <option value="auto">Auto (current domain)</option>
-                <option value="https://chatbottest-production.up.railway.app">chatbottest-production</option>
-                <option value="custom">Custom URL</option>
-            </select>
-            <input type="text" id="custom-server" placeholder="Custom Rasa server URL" style="display:none; width:80%; margin-top:5px;">
-            <button id="connect-button" style="margin-top:5px;">Connect</button>
-        </div>
+        <div id="api-status" class="api-status">Connecting to chatbot...</div>
     </div>
 
     <script>
@@ -139,200 +122,42 @@
             const userInput = document.getElementById('user-input');
             const sendButton = document.getElementById('send-button');
             const apiStatus = document.getElementById('api-status');
-            const rasaServerSelect = document.getElementById('rasa-server');
-            const customServerInput = document.getElementById('custom-server');
-            const connectButton = document.getElementById('connect-button');
             
             // Configuration
-            let API_BASE_URL = window.location.origin;
-            const ENDPOINTS = [
-                '/webhooks/custom_rest/webhook',
-                '/webhooks/rest/webhook',  // Try standard REST webhook as fallback
-                '/webhooks/webhook'        // Try minimal path as another option
-            ];
-            let currentEndpointIndex = 0;
+            const RASA_URL = process.env.RASA_URL || 'http://localhost:5005';
+            const WEBHOOK_ENDPOINT = '/webhooks/rest/webhook';
             let apiConnected = false;
-            let apiEndpoint = ENDPOINTS[currentEndpointIndex];
             
-            // Show/hide custom server input based on selection
-            rasaServerSelect.addEventListener('change', function() {
-                if (this.value === 'custom') {
-                    customServerInput.style.display = 'inline-block';
-                } else {
-                    customServerInput.style.display = 'none';
-                    if (this.value === 'auto') {
-                        API_BASE_URL = window.location.origin;
-                    } else {
-                        API_BASE_URL = this.value;
-                    }
-                }
-            });
-            
-            // Connect button handler
-            connectButton.addEventListener('click', function() {
-                if (rasaServerSelect.value === 'custom') {
-                    API_BASE_URL = customServerInput.value.trim();
-                    if (!API_BASE_URL) {
-                        addSystemMessage("Please enter a valid Rasa server URL");
-                        return;
-                    }
-                }
-                
-                // Remove trailing slash if present
-                if (API_BASE_URL.endsWith('/')) {
-                    API_BASE_URL = API_BASE_URL.slice(0, -1);
-                }
-                
-                addSystemMessage(`Connecting to Rasa server at: ${API_BASE_URL}`);
-                testApiConnection();
-            });
-            
-            // Bot state tracking
-            const botState = {
-                currentStep: 'greeting',  // greeting, askName, askPhone, askAddress, complete
-                userData: {
-                    name: '',
-                    phone: '',
-                    address: ''
-                },
-                lastQuestion: ''
-            };
-            
-            // Pattern dictionaries
-            const greetingPatterns = ['سڵاو', 'سلاو', 'سلام', 'hello', 'slav', 'چۆنی', 'hi', 'hey'];
-            const affirmativePatterns = ['بەڵێ', 'بەلی', 'باشە', 'ok', 'yes', 'بێگومان', 'ba', 'بة', 'بلێ', 'باش'];
-            const negativePatterns = ['نا', 'نەخێر', 'نةخێر', 'no', 'na', 'نه‌'];
-            const namePatterns = ['ناوم', 'name', 'ناو', 'من'];
-            const phonePatterns = ['ژمارە', 'تەلەفۆن', 'phone', 'number', '07', '٠٧', 'mobile'];
-            const addressPatterns = ['ناونیشان', 'address', 'location', 'شوێن', 'گەڕەکی', 'گه‌ڕه‌ك', 'شار', 'city'];
-            
-            // Helper functions
-            function extractPhoneNumber(text) {
-                const phoneRegex = /[٠-٩0-9]{7,}/g;
-                const match = text.match(phoneRegex);
-                return match ? match[0] : null;
-            }
-            
-            function matchesAnyPattern(text, patterns) {
-                const lowercaseText = text.toLowerCase();
-                return patterns.some(pattern => lowercaseText.includes(pattern));
-            }
-            
-            // Process user input based on current state
-            function processUserInput(text) {
-                console.log(`Processing input: "${text}" in state: ${botState.currentStep}`);
-                
-                // Extract a potential phone number
-                const phoneNumber = extractPhoneNumber(text);
-                
-                switch(botState.currentStep) {
-                    case 'greeting':
-                        if (matchesAnyPattern(text, greetingPatterns) || matchesAnyPattern(text, affirmativePatterns)) {
-                            botState.currentStep = 'askName';
-                            return "تکایە ناوی تەواوت بنووسە";
-                        } else if (matchesAnyPattern(text, negativePatterns)) {
-                            return "باشە، کاتێک ویستت زانیاریەکانت تۆمار بکەیت پەیوەندیم پێوە بکە.";
-                        } else {
-                            // Try to determine intent
-                            if (matchesAnyPattern(text, namePatterns)) {
-                                botState.currentStep = 'askPhone';
-                                botState.userData.name = text.replace(/^(ناوم|من|name)/i, '').trim();
-                                return `سوپاس ${botState.userData.name}! ژمارەی تەلەفۆنت چییە؟`;
-                            } else if (phoneNumber) {
-                                botState.currentStep = 'askName';
-                                botState.userData.phone = phoneNumber;
-                                return "تکایە سەرەتا ناوت بنووسە، پاشان ژمارەکەت.";
-                            } else {
-                                return "سڵاو! من بۆتی یارمەتیدەرم. دەتوانم زانیاریەکانت بۆ تۆمار بکەم. دەتەوێت دەست پێ بکەین؟";
-                            }
-                        }
-                    
-                    case 'askName':
-                        botState.userData.name = text;
-                        botState.currentStep = 'askPhone';
-                        return `سوپاس ${text}! ژمارەی تەلەفۆنت چییە؟`;
-                    
-                    case 'askPhone':
-                        if (phoneNumber) {
-                            botState.userData.phone = phoneNumber;
-                            botState.currentStep = 'askAddress';
-                            return "تکایە ناونیشانی تەواوت بنووسە";
-                        } else if (matchesAnyPattern(text, phonePatterns)) {
-                            // They mentioned "phone" but didn't provide a number
-                            return "تکایە ژمارەی تەلەفۆنەکەت بنووسە، بۆ نموونە ٠٧٥٠١٢٣٤٥٦٧";
-                        } else {
-                            // Try to recognize if this is a number with different format
-                            const possibleNumber = text.replace(/[^\d٠-٩]/g, '');
-                            if (possibleNumber.length >= 7) {
-                                botState.userData.phone = possibleNumber;
-                                botState.currentStep = 'askAddress';
-                                return "تکایە ناونیشانی تەواوت بنووسە";
-                            } else {
-                                return "ببورە، ئەوە وەک ژمارەی تەلەفۆن نابینرێت. تکایە ژمارەی تەلەفۆنەکەت بنووسە.";
-                            }
-                        }
-                    
-                    case 'askAddress':
-                        botState.userData.address = text;
-                        botState.currentStep = 'complete';
-                        return `سوپاس! زانیاریەکانت تۆمار کران:\n\nناو: ${botState.userData.name}\nژمارەی تەلەفۆن: ${botState.userData.phone}\nناونیشان: ${botState.userData.address}`;
-                    
-                    case 'complete':
-                        if (matchesAnyPattern(text, greetingPatterns)) {
-                            // Reset for a new conversation
-                            botState.currentStep = 'greeting';
-                            botState.userData = { name: '', phone: '', address: '' };
-                            return "سڵاو دووبارە! دەتوانم یارمەتیت بدەم بە شتێکی تر؟";
-                        } else {
-                            return "سوپاس بۆ زانیاریەکانت. ئەگەر پێویستت بە یارمەتی هەبوو، پەیوەندیمان پێوە بکە.";
-                        }
-                    
-                    default:
-                        // Reset state
-                        botState.currentStep = 'greeting';
-                        return "سڵاو! من بۆتی یارمەتیدەرم. دەتوانم زانیاریەکانت بۆ تۆمار بکەم. دەتەوێت دەست پێ بکەین؟";
-                }
-            }
-            
-            // Test API connection with all available endpoints
+            // Test API connection
             async function testApiConnection() {
-                apiStatus.textContent = "Testing API connection...";
+                apiStatus.textContent = "Connecting to chatbot...";
                 apiStatus.className = 'api-status';
                 
-                for (let i = 0; i < ENDPOINTS.length; i++) {
-                    const endpoint = ENDPOINTS[i];
-                    try {
-                        // Simple test message
-                        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                sender: 'tester',
-                                message: "test"
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            apiConnected = true;
-                            apiEndpoint = endpoint;
-                            currentEndpointIndex = i;
-                            apiStatus.textContent = `Connected to Rasa API: ${API_BASE_URL}${endpoint}`;
-                            apiStatus.className = 'api-status connected';
-                            addSystemMessage("Connected to Rasa chatbot backend!");
-                            return true;
-                        }
-                    } catch (e) {
-                        console.log(`Endpoint ${endpoint} failed:`, e);
+                try {
+                    const response = await fetch(`${RASA_URL}${WEBHOOK_ENDPOINT}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            sender: 'tester',
+                            message: "test"
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        apiConnected = true;
+                        apiStatus.textContent = "Connected to chatbot";
+                        apiStatus.className = 'api-status connected';
+                        return true;
                     }
+                } catch (e) {
+                    console.error('Connection error:', e);
                 }
                 
-                // If we get here, all endpoints failed
                 apiConnected = false;
-                apiStatus.textContent = "Disconnected from Rasa API - Using fallback mode";
+                apiStatus.textContent = "Could not connect to chatbot";
                 apiStatus.className = 'api-status disconnected';
-                addSystemMessage("Couldn't connect to Rasa backend - using fallback mode");
                 return false;
             }
             
@@ -343,7 +168,7 @@
             addBotMessage("سڵاو! من بۆتی یارمەتیدەرم. دەتوانم زانیاریەکانت بۆ تۆمار بکەم. دەتەوێت دەست پێ بکەین؟");
             
             // Send message function
-            function sendMessage() {
+            async function sendMessage() {
                 const text = userInput.value.trim();
                 if (text) {
                     // Add user message to chat
@@ -352,9 +177,8 @@
                     // Clear input
                     userInput.value = '';
                     
-                    if (apiConnected) {
-                        // Try API first
-                        fetch(`${API_BASE_URL}${apiEndpoint}`, {
+                    try {
+                        const response = await fetch(`${RASA_URL}${WEBHOOK_ENDPOINT}`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -363,48 +187,30 @@
                                 sender: 'user',
                                 message: text
                             })
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`API returned ${response.status}: ${response.statusText}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('API Success:', data);
-                            if (data && data.length > 0) {
-                                // Process messages from the API
-                                data.forEach(message => {
-                                    if (message.text) {
-                                        addBotMessage(message.text);
-                                    }
-                                });
-                            } else {
-                                // No messages from API, fall back to local processing
-                                addSystemMessage("Received empty response from API - using fallback logic");
-                                const botResponse = processUserInput(text);
-                                addBotMessage(botResponse);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('API Error:', error);
-                            addSystemMessage(`API Error: ${error.message} - using fallback logic`);
-                            // Process locally on API failure
-                            const botResponse = processUserInput(text);
-                            addBotMessage(botResponse);
-                            
-                            // Try to reconnect if this happens repeatedly
-                            if (!apiConnected) {
-                                // Try the next endpoint
-                                currentEndpointIndex = (currentEndpointIndex + 1) % ENDPOINTS.length;
-                                apiEndpoint = ENDPOINTS[currentEndpointIndex];
-                                testApiConnection();
-                            }
                         });
-                    } else {
-                        // API not connected, use local processing
-                        const botResponse = processUserInput(text);
-                        addBotMessage(botResponse);
+                        
+                        if (!response.ok) {
+                            throw new Error(`API returned ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        if (data && data.length > 0) {
+                            data.forEach(message => {
+                                if (message.text) {
+                                    addBotMessage(message.text);
+                                }
+                            });
+                        } else {
+                            addSystemMessage("No response from chatbot");
+                        }
+                    } catch (error) {
+                        console.error('API Error:', error);
+                        addSystemMessage("Could not reach the chatbot");
+                        
+                        // Try to reconnect
+                        if (!apiConnected) {
+                            testApiConnection();
+                        }
                     }
                 }
             }
