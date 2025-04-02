@@ -1,23 +1,19 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "docker-compose.yml"
+dockerfilePath = "Dockerfile.rasa"
 
 [deploy]
-startCommand = "docker-compose up"
+startCommand = "rasa run --enable-api --cors '*' --port $PORT"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [env]
-RASA_URL = "http://rasa:5005"
+PORT = "5005"
 
 [[services]]
-name = "rasa"
-envVarPrefix = "RASA"
-startCommand = "rasa run --enable-api --cors \"*\" --credentials credentials_railway.yml --port $PORT"
-
-[[services]]
-name = "actions"
-envVarPrefix = "ACTIONS"
-startCommand = "rasa run actions --port 5055" 
+name = "web"
+dockerfilePath = "Dockerfile"
+startCommand = "python serve_test_widget.py"
+port = 3000 
