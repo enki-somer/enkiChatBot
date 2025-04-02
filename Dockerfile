@@ -10,6 +10,6 @@ COPY serve_test_widget.py .
 
 ENV FLASK_APP=serve_test_widget.py
 ENV FLASK_ENV=production
-ENV RASA_URL=https://chatbottest-production.up.railway.app
 
+# RASA_URL will be provided by Railway
 CMD ["python", "serve_test_widget.py"] 

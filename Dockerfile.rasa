@@ -1,23 +1,17 @@
 FROM rasa/rasa:3.6.15
 
-# Copy project files into the container
-COPY . /app
-
 # Set working directory
 WORKDIR /app
 
-# Install any additional dependencies
-COPY requirements-rasa.txt .
-RUN pip install --no-cache-dir -r requirements-rasa.txt
+# Copy project files into the container (except models which will be built)
+COPY data/ /app/data/
+COPY config.yml domain.yml endpoints.yml credentials.yml /app/
 
 # Train the model
 RUN rasa train
 
 # Expose the port the app runs on
 EXPOSE 5005
-
-# Set environment variables
-ENV PORT=5005
 
 # Start the server
 CMD ["run", "--enable-api", "--cors", "*", "--port", "5005"] 
