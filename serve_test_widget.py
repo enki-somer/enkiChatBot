@@ -1,5 +1,6 @@
-from flask import Flask, render_template, send_from_directory, send_file
+from flask import Flask, render_template, send_from_directory, send_file, jsonify
 import os
+import requests
 
 app = Flask(__name__)
 
@@ -13,6 +14,10 @@ def home():
     html_content = html_content.replace('process.env.RASA_URL || \'http://localhost:5005\'', f'"{rasa_url}"')
     
     return html_content, 200, {'Content-Type': 'text/html'}
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
