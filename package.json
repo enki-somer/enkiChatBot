@@ -1,0 +1,12 @@
+{
+  "name": "kurdish-chatbot",
+  "version": "1.0.0",
+  "description": "Kurdish Chatbot Interface",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'No build needed'"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+} 
